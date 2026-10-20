@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>墨睿思 · 移动看板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0c29;
+            color: #fff;
+            padding: 12px;
+            min-height: 100vh;
+        }
+        .header {
+            text-align: center;
+            padding: 16px 0 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 16px;
+        }
+        .header h1 { font-size: 20px; color: #00d4ff; letter-spacing: 1px; }
+        .header p { font-size: 12px; color: #8899aa; margin-top: 4px; }
+
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .card h3 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            border-left: 3px solid #00d4ff;
+            padding-left: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+        .stat-item .num { font-size: 20px; font-weight: 700; color: #00d4ff; }
+        .stat-item .label { font-size: 11px; color: #8899aa; }
+
+        .realtime-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .rt-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+        .rt-item .value { font-size: 16px; font-weight: 600; color: #00d4ff; }
+        .rt-item .label { font-size: 10px; color: #8899aa; }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+        .status-dot.running { background: #2ed573; }
+        .status-dot.warning { background: #ffa502; }
+        .status-dot.danger { background: #ff4757; }
+
+        .btn {
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn:active { transform: scale(0.97); }
+
+        .chat-area {
+            margin-top: 10px;
+        }
+        .chat-input-wrap {
+            display: flex;
+            gap: 8px;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 10px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+        }
+        .chat-input:focus { outline: none; border-color: #00d4ff; }
+        .chat-messages {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .msg {
+            margin-bottom: 8px;
+            display: flex;
+        }
+        .msg.user { justify-content: flex-end; }
+        .msg.ai { justify-content: flex-start; }
+        .msg .bubble {
+            max-width: 85%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+        .msg.user .bubble { background: #00d4ff; color: #000; }
+        .msg.ai .bubble { background: rgba(255,255,255,0.08); color: #e0e0e0; }
+
+        .quick-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .quick-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 4px 12px;
+            font-size: 11px;
+            color: #8899aa;
+            cursor: pointer;
+        }
+        .quick-btn:active { background: rgba(0,212,255,0.15); color: #00d4ff; }
+
+        .footer { text-align: center; font-size: 10px; color: #8899aa; padding: 16px 0; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 12px; }
+
+        .alert-box {
+            background: rgba(255,71,87,0.12);
+            border: 1px solid #ff4757;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        .alert-box.show { display: block; }
+        .alert-box .title { color: #ff4757; font-weight: 600; font-size: 13px; }
+        .alert-box .msg { font-size: 12px; color: #ccc; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🔧 墨睿思 <span style="color:#00d4ff;">MORES</span></h1>
+    <p>工业智能体 · 移动看板</p>
+</div>
+
+<!-- 实时监控 -->
+<div class="card">
+    <h3>🏭 设备实时状态</h3>
+    <div class="realtime-grid" id="rtGrid">
+        <div class="rt-item"><div class="value" id="rtTemp">--</div><div class="label">温度</div></div>
+        <div class="rt-item"><div class="value" id="rtPressure">--</div><div class="label">压力</div></div>
+        <div class="rt-item"><div class="value" id="rtDefect">--</div><div class="label">不良率</div></div>
+        <div class="rt-item"><div class="value" id="rtCycle">--</div><div class="label">周期</div></div>
+        <div class="rt-item"><div class="value" id="rtVibration">--</div><div class="label">振动</div></div>
+        <div class="rt-item"><div class="value" id="rtStatus">--</div><div class="label">状态</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn" onclick="startMonitor()" style="background:#2ed573;color:#000;">▶ 开始</button>
+        <button class="btn" onclick="stopMonitor()" style="background:#666;color:#fff;">⏹ 停止</button>
+    </div>
+</div>
+
+<!-- 预警 -->
+<div class="alert-box" id="alertBox">
+    <div class="title">🚨 预警</div>
+    <div class="msg" id="alertMsg"></div>
+</div>
+
+<!-- 统计数据 -->
+<div class="card">
+    <h3>📊 数据摘要</h3>
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-item"><div class="num" id="total">--</div><div class="label">总记录</div></div>
+        <div class="stat-item"><div class="num" id="avgDef">--</div><div class="label">平均不良率</div></div>
+        <div class="stat-item"><div class="num" id="maxDef">--</div><div class="label">最高不良率</div></div>
+        <div class="stat-item"><div class="num" id="avgCycle">--</div><div class="label">平均周期</div></div>
+    </div>
+</div>
+
+<!-- AI助手 -->
+<div class="card">
+    <h3>🤖 墨睿思工业智能体</h3>
+    <div class="chat-messages" id="chatMsgs">
+        <div class="msg ai"><div class="bubble">你好！我是墨睿思工业智能体。问我任何生产问题，我会帮你分析。</div></div>
+    </div>
+    <div class="chat-input-wrap">
+        <input class="chat-input" id="chatInput" placeholder="输入问题..." onkeypress="if(event.keyCode===13) sendChat()">
+        <button class="btn" onclick="sendChat()" style="width:auto;padding:8px 14px;font-size:13px;">发送</button>
+    </div>
+    <div class="quick-btns">
+        <span class="quick-btn" onclick="quickAsk('分析当前数据')">📊 分析</span>
+        <span class="quick-btn" onclick="quickAsk('给出优化建议')">⚡ 优化</span>
+        <span class="quick-btn" onclick="quickAsk('总结趋势')">📈 趋势</span>
+        <span class="quick-btn" onclick="quickAsk('设备状态如何')">🏭 状态</span>
+    </div>
+</div>
+
+<div class="footer">⚡ 墨睿思 MORES · 一张卡 · 千行百业</div>
+
+<script>
+    let monitorInterval = null;
+
+    // ===== 实时监控 =====
+    function startMonitor() {
+        if (monitorInterval) clearInterval(monitorInterval);
+        updateRT();
+        monitorInterval = setInterval(updateRT, 3000);
+    }
+    function stopMonitor() {
+        if (monitorInterval) { clearInterval(monitorInterval); monitorInterval = null; }
+    }
+    async function updateRT() {
+        try {
+            const res = await fetch('/api/collector/real-time');
+            const data = await res.json();
+            document.getElementById('rtTemp').innerText = data.temperature || '--';
+            document.getElementById('rtPressure').innerText = data.pressure || '--';
+            document.getElementById('rtVibration').innerText = data.vibration || '--';
+            document.getElementById('rtCycle').innerText = data.cycle_time || '--';
+            document.getElementById('rtDefect').innerText = ((data.defect_rate || 0) * 100).toFixed(1) + '%';
+            const status = data.status || '运行';
+            const dot = status === '运行' ? '🟢' : (status === '预警' ? '🟡' : '🔴');
+            document.getElementById('rtStatus').innerHTML = `${dot} ${status}`;
+            if (status === '预警') {
+                document.getElementById('alertBox').classList.add('show');
+                document.getElementById('alertMsg').innerText = `温度${data.temperature}°C，建议检查设备`;
+            } else {
+                document.getElementById('alertBox').classList.remove('show');
+            }
+        } catch(e) {}
+    }
+
+    // ===== 统计数据 =====
+    async function loadStats() {
+        try {
+            const res = await fetch('/api/collector/summary');
+            const data = await res.json();
+            if (!data.error) {
+                document.getElementById('total').innerText = data.total_records || 0;
+                document.getElementById('avgDef').innerText = data.avg_defect_rate || 0;
+                document.getElementById('maxDef').innerText = data.max_defect_rate || 0;
+                document.getElementById('avgCycle').innerText = data.avg_cycle_time || 0;
+            }
+        } catch(e) {}
+    }
+
+    // ===== AI =====
+    async function sendChat() {
+        const input = document.getElementById('chatInput');
+        const q = input.value.trim();
+        if (!q) return;
+        input.value = '';
+        await ask(q);
+    }
+
+    async function quickAsk(q) {
+        document.getElementById('chatInput').value = q;
+        await ask(q);
+    }
+
+    async function ask(q) {
+        const msgs = document.getElementById('chatMsgs');
+        msgs.innerHTML += `<div class="msg user"><div class="bubble">${escapeHtml(q)}</div></div>`;
+        msgs.scrollTop = msgs.scrollHeight;
+        msgs.innerHTML += `<div class="msg ai"><div class="bubble">⏳ 思考中...</div></div>`;
+        msgs.scrollTop = msgs.scrollHeight;
+        try {
+            const res = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: q })
+            });
+            const data = await res.json();
+            const answer = data.answer || '无法获取回答';
+            msgs.lastChild.innerHTML = `<div class="bubble" style="white-space:pre-wrap;word-wrap:break-word;line-height:1.6;">${escapeHtml(answer)}</div>`;
+        } catch(e) {
+            msgs.lastChild.innerHTML = `<div class="bubble">❌ 请求失败</div>`;
+        }
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function escapeHtml(t) {
+        const d = document.createElement('div');
+        d.textContent = t;
+        return d.innerHTML;
+    }
+
+    // ===== 初始化 =====
+    loadStats();
+    setTimeout(startMonitor, 500);
+</script>
+</body>
+</html>
